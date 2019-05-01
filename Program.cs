@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AsyncDemo.Clients;
-using AsyncDemo.DataContracts;
+using AsyncDemo.Primes;
 
 namespace AsyncDemo
 {
@@ -47,7 +47,7 @@ namespace AsyncDemo
             Console.WriteLine("It accepts 2 arguments:" + Environment.NewLine);
             Console.WriteLine("-a or -s : Run the asynchronous/synchronous calls demonstration, respectively.");
             Console.WriteLine("-i [n]: Number of iterations (e.g. -i 10 for 10 iterations).");
-            Console.WriteLine("Alternatively run with no arguments for multithreading demo.");
+            Console.WriteLine("Alternatively run with no arguments for multithreading demo (generate all primes upto 100,000).");
             Console.WriteLine(Environment.NewLine);
         }
 
@@ -55,7 +55,7 @@ namespace AsyncDemo
         {
             Console.WriteLine($"Asynchronously retrieving comments, albums and photos. Iterations: {iterations}.");
 
-            var placeholderClient = new JsonPlaceholderClient();
+            var placeholderClient = new PhotoAlbumsClient();
 
             List<long> timings = new List<long>();
 
@@ -82,7 +82,7 @@ namespace AsyncDemo
         {
             Console.WriteLine("Synchronously retrieving comments, albums and photos. Iterations: {iterations}.");
 
-            var placeholderClient = new JsonPlaceholderClient();
+            var placeholderClient = new PhotoAlbumsClient();
 
             List<long> timings = new List<long>();
 
@@ -104,27 +104,48 @@ namespace AsyncDemo
 
         private static void RunMultithreadDemo()
         {
-            ThreadStart job = new ThreadStart(ThreadJob);
-            Thread thread = new Thread(job);
-            thread.Start();
+            List<uint> primesOneThread = new List<uint>();
+            var sw = new Stopwatch();
+            sw.Start();
+            PrimeFinder.GeneratePrimes(primesOneThread, 1, 100000);
+            sw.Stop();
+            Console.WriteLine($"With a single thread, there were {primesOneThread.Count} primes found upto 100,000 in {sw.ElapsedMilliseconds}ms{Environment.NewLine}");
 
-            Random rand = new Random();
+            sw.Reset();
+            //Multithreaded part
+            sw.Start();
 
-            for (int i = 0; i < 50; i++)
+            List<uint> primesMultiThreads = new List<uint>();
+            var doneEvents = new ManualResetEvent[4];
+            doneEvents[0] = new ManualResetEvent(false);
+            doneEvents[1] = new ManualResetEvent(false);
+            doneEvents[2] = new ManualResetEvent(false);
+
+            var primesThread1 = new PrimeFinder(1, 40000, doneEvents[0]);
+            var primesThread2 = new PrimeFinder(40001, 75000, doneEvents[1]);
+            var primesThread3 = new PrimeFinder(75001, 100000, doneEvents[2]);
+
+            ThreadPool.QueueUserWorkItem(primesThread1.ThreadPoolCallback, 1);
+            ThreadPool.QueueUserWorkItem(primesThread2.ThreadPoolCallback, 2);
+            ThreadPool.QueueUserWorkItem(primesThread3.ThreadPoolCallback, 3);
+
+            WaitHandle.WaitAll(doneEvents);
+
+            primesMultiThreads.AddRange(primesThread1.primes);
+            primesMultiThreads.AddRange(primesThread2.primes);
+            primesMultiThreads.AddRange(primesThread3.primes);
+
+            sw.Stop();
+
+            Console.WriteLine($"With 3 threads, there were {primesMultiThreads.Count} primes found upto 100,000 in {sw.ElapsedMilliseconds}ms{Environment.NewLine}");
+
+            Console.WriteLine($"Would you like to display the last 100 primes? (y/n)");
+            if (Console.ReadLine().ToLower() == "y")
             {
-                Console.WriteLine($"Main thread: {i}");
-                Thread.Sleep(rand.Next(200));
-            }
-        }
-
-        private static void ThreadJob()
-        {
-            Random rand = new Random();
-
-            for (int i = 0; i < 50; i++)
-            {
-                Console.WriteLine($"Other thread: {i}");
-                Thread.Sleep(rand.Next(200));
+                for (int i = primesMultiThreads.Count - 100; i < primesMultiThreads.Count; i++)
+                {
+                    Console.Write($"{primesMultiThreads[i]},");
+                }
             }
         }
     }
