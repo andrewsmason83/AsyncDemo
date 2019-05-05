@@ -6,6 +6,7 @@ namespace AsyncDemo
     public class ProgramArguments
     {
         public bool IsHelp { get; }
+        public bool IsMice { get; }
         public bool IsAsync { get; }
         public bool IsSync { get; }
         public UInt16 Iterations { get; }
@@ -19,11 +20,12 @@ namespace AsyncDemo
             IsHelp = args.Contains("-help");
             IsAsync = args.Contains("-a");
             IsSync = args.Contains("-s");
+            IsMice = args.Contains("-m");
 
-            if (IsAsync && IsSync)
+            if ((IsAsync? 1:0) + (IsSync? 1:0) + (IsMice? 1:0) > 1)
             {
                 ArgsValid = false;
-                ErrorMessage = "Argument '-s' or 'a' but not both can be used. Run with -help for more information.";
+                ErrorMessage = "Argument '-s' or '-a' or '-m' may each be used only one at a time. Run with -help for more information.";
             }
             else
             {

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AsyncDemo.Clients;
 using AsyncDemo.Primes;
+using AsyncDemo.MouseRace;
 
 namespace AsyncDemo
 {
@@ -19,7 +20,7 @@ namespace AsyncDemo
             {
                 if (programArgs.IsHelp)
                 {
-                    DisplayHelpPage();
+                    DisplayHelp();
                 }
                 else if (programArgs.IsAsync)
                 {
@@ -28,6 +29,10 @@ namespace AsyncDemo
                 else if (programArgs.IsSync)
                 {
                     RunSyncDemo(programArgs.Iterations);
+                }
+                else if (programArgs.IsMice)
+                {
+                    RunMouseRaceDemo();
                 }
                 else
                 {
@@ -40,14 +45,15 @@ namespace AsyncDemo
             }
         }
 
-        private static void DisplayHelpPage()
+        private static void DisplayHelp()
         {
             Console.WriteLine("This application shows the differences between calling 3 external REST api");
             Console.WriteLine("endpoints synchronously and asynchronously." + Environment.NewLine);
-            Console.WriteLine("It accepts 2 arguments:" + Environment.NewLine);
+            Console.WriteLine("It accepts up to 2 arguments:" + Environment.NewLine);
             Console.WriteLine("-a or -s : Run the asynchronous/synchronous calls demonstration, respectively.");
-            Console.WriteLine("-i [n]: Number of iterations (e.g. -i 10 for 10 iterations).");
-            Console.WriteLine("Alternatively run with no arguments for multithreading demo (generate all primes upto 100,000).");
+            Console.WriteLine("-i [n]: Number of iterations (e.g. -i 10 for 10 iterations). Only works with -a and -s.");
+            Console.WriteLine("-m : Run Mouse race demo (async demo using when any to await 1 response only).");
+            Console.WriteLine("Alternatively run with no arguments for multithreading demo (generate all primes up to 100,000).");
             Console.WriteLine(Environment.NewLine);
         }
 
@@ -102,6 +108,42 @@ namespace AsyncDemo
             Console.WriteLine($"Process completed, average time to retrieve {timings.Average()}");
         }
 
+        private static void RunMouseRaceDemo()
+        {
+            Console.WriteLine($"Asynchronous 3 mouse race.");
+            
+            var firstTrackRow = Console.CursorTop + 1;
+
+            var mice = new MouseRace.MouseRace();
+            var mouse1 = new Mouse {name = "Red Rum", consoleRow = firstTrackRow };
+            var mouse2 = new Mouse { name = "Tiger Roll", consoleRow = firstTrackRow + 1 };
+            var mouse3 = new Mouse { name = "Secretariat", consoleRow = firstTrackRow + 2 };
+
+            mice.PrintTrack(mouse1, mouse2, mouse3);
+
+            for (int i = 3; i > 0; i--)
+            {
+                Console.Write($"{i}");
+                for (int j = 2; j > 0; j--)
+                {
+                    Thread.Sleep(500);
+                    Console.Write($".");
+                }
+            }
+            Console.WriteLine($"And they're off!");
+                        
+            var mouse1Run = mice.RunAsync(mouse1);
+            var mouse2Run = mice.RunAsync(mouse2);
+            var mouse3Run = mice.RunAsync(mouse3);
+
+            var winner = Task.WhenAny(mouse1Run, mouse2Run, mouse3Run).Result;
+
+            Console.CursorVisible = true;
+            Console.SetCursorPosition(0, firstTrackRow + 5);
+
+            Console.WriteLine($"{winner.Result} wins!");
+        }
+
         private static void RunMultithreadDemo()
         {
             List<uint> primesOneThread = new List<uint>();
@@ -116,7 +158,7 @@ namespace AsyncDemo
             sw.Start();
 
             List<uint> primesMultiThreads = new List<uint>();
-            var doneEvents = new ManualResetEvent[4];
+            var doneEvents = new ManualResetEvent[3];
             doneEvents[0] = new ManualResetEvent(false);
             doneEvents[1] = new ManualResetEvent(false);
             doneEvents[2] = new ManualResetEvent(false);
