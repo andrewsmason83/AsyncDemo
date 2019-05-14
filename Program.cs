@@ -36,7 +36,7 @@ namespace AsyncDemo
                 }
                 else
                 {
-                    RunMultithreadDemo();
+                    await RunMultithreadDemo();
                 }
             }
             else
@@ -144,42 +144,41 @@ namespace AsyncDemo
             Console.WriteLine($"{winner.Result} wins!");
         }
 
-        private static void RunMultithreadDemo()
+        private static async Task RunMultithreadDemo()
         {
             List<uint> primesOneThread = new List<uint>();
             var sw = new Stopwatch();
             sw.Start();
-            PrimeFinder.GeneratePrimes(primesOneThread, 1, 100000);
+            PrimeFinder.GeneratePrimes(primesOneThread, 1, 10000000);
             sw.Stop();
-            Console.WriteLine($"With a single thread, there were {primesOneThread.Count} primes found upto 100,000 in {sw.ElapsedMilliseconds}ms{Environment.NewLine}");
+            Console.WriteLine($"With a single thread, there were {primesOneThread.Count} primes found up to 10,000,000 in {sw.ElapsedMilliseconds/1000}s{Environment.NewLine}");
 
             sw.Reset();
             //Multithreaded part
             sw.Start();
 
+            var primesThread1 = new List<uint>();
+            var primesThread2 = new List<uint>();
+            var primesThread3 = new List<uint>();
+            var primesThread4 = new List<uint>();
+
             List<uint> primesMultiThreads = new List<uint>();
-            var doneEvents = new ManualResetEvent[3];
-            doneEvents[0] = new ManualResetEvent(false);
-            doneEvents[1] = new ManualResetEvent(false);
-            doneEvents[2] = new ManualResetEvent(false);
+            var primeThreads = new Task[4];
+            primeThreads[0] = Task.Run(() => PrimeFinder.GeneratePrimes(primesThread1, 1, 3000000));
+            primeThreads[1] = Task.Run(() => PrimeFinder.GeneratePrimes(primesThread2, 3000001, 6000000));
+            primeThreads[2] = Task.Run(() => PrimeFinder.GeneratePrimes(primesThread3, 6000001, 8000000));
+            primeThreads[3] = Task.Run(() => PrimeFinder.GeneratePrimes(primesThread4, 8000001, 10000000));
 
-            var primesThread1 = new PrimeFinder(1, 40000, doneEvents[0]);
-            var primesThread2 = new PrimeFinder(40001, 75000, doneEvents[1]);
-            var primesThread3 = new PrimeFinder(75001, 100000, doneEvents[2]);
+            await Task.WhenAll(primeThreads);
 
-            ThreadPool.QueueUserWorkItem(primesThread1.ThreadPoolCallback, 1);
-            ThreadPool.QueueUserWorkItem(primesThread2.ThreadPoolCallback, 2);
-            ThreadPool.QueueUserWorkItem(primesThread3.ThreadPoolCallback, 3);
-
-            WaitHandle.WaitAll(doneEvents);
-
-            primesMultiThreads.AddRange(primesThread1.primes);
-            primesMultiThreads.AddRange(primesThread2.primes);
-            primesMultiThreads.AddRange(primesThread3.primes);
+            primesMultiThreads.AddRange(primesThread1);
+            primesMultiThreads.AddRange(primesThread2);
+            primesMultiThreads.AddRange(primesThread3);
+            primesMultiThreads.AddRange(primesThread4);
 
             sw.Stop();
 
-            Console.WriteLine($"With 3 threads, there were {primesMultiThreads.Count} primes found upto 100,000 in {sw.ElapsedMilliseconds}ms{Environment.NewLine}");
+            Console.WriteLine($"With 4 threads, there were {primesMultiThreads.Count} primes found up to 10,000,000 in {sw.ElapsedMilliseconds/1000}s{Environment.NewLine}");
 
             Console.WriteLine($"Would you like to display the last 100 primes? (y/n)");
             if (Console.ReadLine().ToLower() == "y")
